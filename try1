@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+delay_period=
+repeat_times=
+incoming_arguments=("$@")
+ordered_command=${incoming_arguments[@]:4}
+while getopts i:n: switches
+do
+    case $switches in
+        i)
+            delay_period=$OPTARG
+            ;;
+        n)
+            repeat_times=$OPTARG
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+done
+counter=0
+eval "$ordered_command &>/dev/null 2>&1" 
+if [[ $? -eq 0 ]];then
+    exit 0
+else
+    while [[ $? -ne 0 && $counter -lt $repeat_times ]]
+    do
+        let counter=$counter+1
+        sleep $delay_period
+        eval "$ordered_command &>/dev/null 2>&1" 
+    done
+    if [[ $? -eq 0 ]]
+    then
+        exit 0
+    else
+        # >&2 echo "fatal"
+        echo "An error occurred while running the ordered command" >> /dev/stderr
+        exit 1
+    fi
+fi
