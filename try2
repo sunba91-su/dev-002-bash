@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# set -x
+####################  va;ues  ####################
+delay_period=
+repeat_times=
+default_delay_period=5
+default_repeat_time=12
+incoming_arguments=("$@")
+# echo ${incoming_arguments[*]}
+# ordered_command=${incoming_arguments[@]:4}
+####################  usage function  #########################
+function usage (){
+    echo "you must pass this command at least one argument"
+    echo "try2 [options] COMMAND...."
+}
+####################  get options  ####################
+while getopts i:n: switches
+do
+    case $switches in
+        i)
+            delay_period=$OPTARG
+            ;;
+        n)
+            repeat_times=$OPTARG
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+done
+####################  check incoming options  ####################
+if [[ ! $delay_period ]] && [[ ! $repeat_times ]]
+then
+    ordered_command=${incoming_arguments[*]}
+elif [[ ! $delay_period ]] || [[ ! $repeat_times ]]
+then
+    ordered_command=${incoming_arguments[@]:2}
+elif [[ -n $delay_period ]] && [[ -n $repeat_times ]]
+then
+    ordered_command=${incoming_arguments[@]:4}
+fi
+if [[ ! $delay_period ]]
+then
+    if [[ -n $TRY_INTERVAL ]]
+    then
+        delay_period=$TRY_INTERVAL
+    else
+        delay_period=$default_delay_period
+    fi
+fi
+if [[ ! $repeat_times ]]
+then
+    if [[ -n $TRY_NUMBER ]]
+    then
+        repeat_times=$TRY_INTERVAL
+    else
+        repeat_times=$default_repeat_time
+    fi
+fi
+####################  run ordered command  ####################
+if [[ -n $ordered_command ]]
+then
+    counter=0
+    eval "$ordered_command &>/dev/null 2>&1" 
+    if [[ $? -eq 0 ]];then
+        exit 0
+    else
+        while [[ $? -ne 0 && $counter -lt $repeat_times ]]
+        do
+            let counter=$counter+1
+            sleep $delay_period
+            eval "$ordered_command &>/dev/null 2>&1" 
+        done
+        if [[ $? -eq 0 ]]
+        then
+            exit 0
+        else
+            # >&2 echo "fatal"
+            echo "An error occurred while running the ordered command" >> /dev/stderr
+            exit 1
+        fi
+    fi
+elif [[ ! $ordered_command ]]
+then
+    usage
+    exit 1
+else
+    exit 1
+fi
+
